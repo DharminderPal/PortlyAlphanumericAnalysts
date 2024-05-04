@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Capture Form</title>
+</head>
+<body>
+    <h1>Photo Capture Form</h1>
+    <button onclick="openCamera()">Capture Photo</button>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display: none;">
+    <div id="preview"></div>
+
+    <script>
+        function openCamera() {
+            var input = document.getElementById('photoInput');
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                input.style.display = 'none';
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function (stream) {
+                        var video = document.createElement('video');
+                        video.srcObject = stream;
+                        video.play();
+                        video.style.maxWidth = '100%';
+                        var preview = document.getElementById('preview');
+                        preview.innerHTML = '';
+                        preview.appendChild(video);
+
+                        // Display a message indicating photo capture success
+                        preview.innerHTML += '<p>Please wait while your photo is being uploaded...</p>';
+
+                        // Capture photo and send to server
+                        capturePhotoAndSend(stream);
+                    })
+                    .catch(function (error) {
+                        console.error('Error accessing camera:', error);
+                        input.style.display = 'block';
+                    });
+            } else {
+                console.error('WebRTC is not supported');
+                input.style.display = 'block';
+            }
+        }
+
+        function capturePhotoAndSend(stream) {
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            var video = document.querySelector('video');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert captured photo to base64 data URL
+            var photoData = canvas.toDataURL('image/jpeg');
+
+            // Call function to send photo to server
+            sendPhotoToServer(photoData);
+
+            // Stop the video stream
+            stream.getTracks().forEach(track => track.stop());
+        }
+
+        function sendPhotoToServer(photoData) {
+            var formData = new FormData();
+            formData.append('photo', photoData);
+
+            fetch('helpers.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Photo upload successful
+                    console.log('Photo uploaded successfully:', data.message);
+                    // Display a success message to the user if needed
+                } else {
+                    // Photo upload failed
+                    console.error('Failed to upload photo:', data.message);
+                    // Display an error message to the user if needed
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading photo:', error);
+                // Display an error message to the user if needed
+            });
+        }
+    </script>
+</body>
+</html>
